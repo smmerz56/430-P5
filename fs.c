@@ -83,51 +83,45 @@ i32 fsOpen(str fname) {
 // read (may be less than 'numb' if we hit EOF).  On failure, abort
 // ============================================================================
 i32 fsRead(i32 fd, i32 numb, void* buf) { 
- 
   
+  i8 tempBuf[512];
+  memset(tempBuf, 0, 512);
   
-  i32 inum = bfsFdToInum(fd);// get inum for bfsRead *****can be first outside of loop, same inum everytime***inum refresh
+  i32 inum = bfsFdToInum(fd);// get inum for bfsRead***inum refresh
   i32 cursor = bfsTell(fd); //retrieve cursor position  
-  i32 fbn = cursor / 512; //divide cursor position by 512 to find FBN for use in bfsRead 
+  i32 beginningCursor = cursor;// for use in finding return value
+  i32 endCursor = cursor + numb;//not taking more bytes than file has scenario********
+  i32 fbn = cursor / 512; //divide cursor position by 512 to find FBN for use in bfsRead   
   
- // i32 endCursor = cursor + numb;//not taking more bytes than file has scenario********
-  
+  int cell = 0;
    // loop code
-   for(;;){
-      bfsRead(inum, fbn, buf);// from bfs.c. Need inum == inode and fbn == file block number. 
-      printf("Here\n");
-      printf("cursor %d\n", cursor);
-      printf("numb %d\n", numb);
-      if(cursor + 512 >= /*endCursor*/ numb){ // this is the error
-        cursor += numb; // or right here
-        bfsSetCursor(inum, cursor);
-        break;
-      }
-      else{
-        cursor += 512;
-        bfsSetCursor(inum, cursor);
-        fbn = cursor / 512;
-      }
-      
-     // bfsSetCursor(inum, cursor);
-     // fbn = cursor / 512;
-   }
+  for(int i = 0 ;; i++){
+    cell = 512 * i;
+    bfsRead(inum, fbn, tempBuf);// from bfs.c. Need inum == inode 
+    memmove(buf+cell, tempBuf, 512);
+    
+   // printf("cursor %d\n", cursor);
+    //maybe if(cursor + 512 > fileSize) { cursor = fileSize .... the rest from below} 
+    if(cursor + 512 >= endCursor){ 
+      cursor = endCursor; 
+      bfsSetCursor(inum, cursor);
+      break;
+    }
+    else{
+      cursor += 512; 
+      bfsSetCursor(inum, cursor);
+      fbn = cursor / 512;
+    }
   
+  }
   
+  i32 fileSize = bfsGetSize(inum);
   
-  //********************************************************
-   
-  /* i32 inum = bfsFdToInum(fd);// get inum for bfsRead *****can be first outside of loop, same inum everytime***inum refresh    
-   i32 cursor = bfsTell(fd); //retrieve cursor position  **************new everytime  
-   i32 fbn = cursor / 512; //divide cursor position by 512 to find FBN for use in bfsRead **************new everytime
-   
-   
-   bfsRead(inum, fbn, buf);// from bfs.c. Need inum == inode and fbn == file block number. 
-   
-   i32 newCurs = cursor + numb;   
-   bfsSetCursor(inum, newCurs);*/
-
-  // return current cursor - beginning cursor***********************
+ // printf("fileSize %d\n", fileSize);
+  
+  if(beginningCursor + numb > fileSize){ // not sure if this is correct
+    return fileSize - beginningCursor;
+  }
   //FATAL(ENYI);                                  // Not Yet Implemented!
   return numb;
 }
